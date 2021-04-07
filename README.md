@@ -21,6 +21,12 @@
 
 - _CloudFront_ seem to use `S3OriginConfig` to distinguish between what kind of origin is he dealing with. To disable, specify empty string for that property
 
+- When the OAI is specified, there does not seem to be a possibility of removing the Authorization header that _CloudFront_ sends to the origin (S3 in our case).
+
+- Can lambda write to multiple cloudwatch groups by default? OR do I have to use the API directly?
+  - _LogGroup_ is tied to the name of the function. Normally, the _LogGroup_ and a given _LogStream_ is created implicitly, by the Lambda Service.
+  - If you opt in for directly pushing the logs using the API, you have to create _LogGroup_ and _LogStream_ manually.
+
 ## Deployment
 
 - run `npm run cdk bootstrap`

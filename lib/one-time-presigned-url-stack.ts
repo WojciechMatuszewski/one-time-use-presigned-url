@@ -7,6 +7,7 @@ import * as lambda from "@aws-cdk/aws-lambda-nodejs";
 import * as s3 from "@aws-cdk/aws-s3";
 import * as cdk from "@aws-cdk/core";
 import { join } from "path";
+import * as logs from "@aws-cdk/aws-logs";
 
 export class OneTimePresignedUrlStack extends cdk.Stack {
   constructor(scope: cdk.Construct, id: string, props?: cdk.StackProps) {
@@ -43,6 +44,23 @@ export class OneTimePresignedUrlStack extends cdk.Stack {
       entry: join(__dirname, "./edge-lambda.ts")
     });
     entriesTable.grantReadWriteData(edgeLambda.latestVersion);
+
+    const debugLogGroup = new logs.LogGroup(this, "debug", {
+      retention: logs.RetentionDays.ONE_DAY
+    });
+    const logStream = new logs.LogStream(this, "debugLogStream", {
+      logGroup: debugLogGroup,
+      logStreamName: "logStream",
+      removalPolicy: cdk.RemovalPolicy.DESTROY
+    });
+    const removeAuthorizationLambda = new lambda.NodejsFunction(
+      this,
+      "removeAuthorizationLambda",
+      {
+        entry: join(__dirname, "./origin-request-lambda.ts")
+      }
+    );
+    debugLogGroup.grantWrite(removeAuthorizationLambda.latestVersion);
 
     const api = new apigw.HttpApi(this, "api", {
       corsPreflight: {
@@ -88,7 +106,7 @@ export class OneTimePresignedUrlStack extends cdk.Stack {
         // This path will be forwarded to s3.
         // So the resulting path is S3PATH/assets/item, NOT S3PATH/item
         "assets/*": {
-          origin: new CustomS3Origin(bucket),
+          origin: new origins.S3Origin(bucket),
           allowedMethods: cloudfront.AllowedMethods.ALLOW_ALL,
           viewerProtocolPolicy:
             cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
@@ -97,12 +115,20 @@ export class OneTimePresignedUrlStack extends cdk.Stack {
             minTtl: cdk.Duration.seconds(0),
             defaultTtl: cdk.Duration.seconds(0),
             // QueryStrings have to be forwarded, otherwise you will encounter an error with 'Some headers are not signed'
-            queryStringBehavior: cloudfront.CacheQueryStringBehavior.all()
+            queryStringBehavior: cloudfront.CacheQueryStringBehavior.denyList(
+              "Authorization"
+            ),
+            headerBehavior: cloudfront.CacheHeaderBehavior.allowList("EMPTY")
           }),
           edgeLambdas: [
             {
               eventType: cloudfront.LambdaEdgeEventType.VIEWER_REQUEST,
               functionVersion: edgeLambda.currentVersion,
+              includeBody: false
+            },
+            {
+              eventType: cloudfront.LambdaEdgeEventType.ORIGIN_REQUEST,
+              functionVersion: removeAuthorizationLambda.currentVersion,
               includeBody: false
             }
           ]
@@ -122,6 +148,10 @@ export class OneTimePresignedUrlStack extends cdk.Stack {
 
     new cdk.CfnOutput(this, "presignedUrlEndpoint", {
       value: `${distribution.domainName}/api/url`
+    });
+
+    new cdk.CfnOutput(this, "logGroupName", {
+      value: debugLogGroup.logGroupName
     });
   }
 }

@@ -1,15 +1,21 @@
-import S3Client from "aws-sdk/clients/s3";
 import url from "url";
 import crypto from "crypto";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 
 const client = new S3Client({});
 
 const handler = async () => {
-  const signedUrl = client.getSignedUrl("putObject", {
-    Bucket: process.env.BUCKET_NAME,
-    Key: `assets/something`,
-    Expires: 60 * 5
-  });
+  const signedUrl = await getSignedUrl(
+    client,
+    new PutObjectCommand({
+      Bucket: process.env.BUCKET_NAME,
+      Key: "assets/something"
+    }),
+    { expiresIn: 60 * 5 }
+  );
+
+  console.log({ signedUrl });
 
   const { path } = url.parse(signedUrl);
   if (!path) {

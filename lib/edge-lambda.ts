@@ -54,7 +54,7 @@ const forbiddenResponse = {
 
 const TABLE_NAME =
   // You will need to populate this value with the table name after you deploy for the first time
-  "XXXX";
+  "xxx";
 
 const handler: CloudFrontRequestHandler = async event => {
   const { request } = event.Records[0].cf;
