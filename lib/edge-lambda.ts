@@ -6,7 +6,6 @@ import {
   GetItemCommand,
   PutItemCommand
 } from "@aws-sdk/client-dynamodb";
-import middy from "@middy/core";
 import { marshall } from "@aws-sdk/util-dynamodb";
 
 /**
