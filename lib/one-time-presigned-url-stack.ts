@@ -87,11 +87,11 @@ export class OneTimePresignedUrlStack extends cdk.Stack {
     urlLambda.addEnvironment("CF_DOMAIN", distribution.domainName);
 
     /**
-     * I could not find any way to disable the default AOI created by `S3Origin` construct.
-     * With AOI CloudFront adds the `Authorization` header (from my understand it's not possible to remove it using Lambda@Edge).
+     * I could not find any way to disable the default OAI created by `S3Origin` construct explicitly (through `S3Origin` options).
+     * With OAI CloudFront adds the `Authorization` header (from my understand it's not possible to remove it using Lambda@Edge).
      * This header messes up the authorization part when pre-signed URL query strings  are forwarded to S3.
      *
-     * The following lines remove the AOI created by `S3Origin` directly from the generated CloudFormation.
+     * The following lines remove the OAI created by `S3Origin` directly from the generated CloudFormation.
      */
     const cfnDistribution = distribution.node
       .defaultChild as cloudfront.CfnDistribution;
@@ -101,15 +101,9 @@ export class OneTimePresignedUrlStack extends cdk.Stack {
       ""
     );
 
-    new cdk.CfnOutput(this, "distributionUrl", {
-      value: `https://${distribution.domainName}`
-    });
+    new cdk.CfnOutput(this, "assetsBucketName", { value: bucket.bucketName });
 
-    new cdk.CfnOutput(this, "dynamoTableName", {
-      value: entriesTable.tableName
-    });
-
-    new cdk.CfnOutput(this, "presignedUrlEndpoint", {
+    new cdk.CfnOutput(this, "getPresignedUrlEndpoint", {
       value: `${api.apiEndpoint}/get-url`
     });
   }
