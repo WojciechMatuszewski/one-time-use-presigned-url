@@ -1,29 +1,41 @@
-import S3Client from "aws-sdk/clients/s3";
 import url from "url";
 import crypto from "crypto";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
+import { APIGatewayProxyEventV2 } from "aws-lambda";
 
-const client = new S3Client({});
+const S3 = new S3Client({});
 
-const handler = async () => {
-  const signedUrl = client.getSignedUrl("putObject", {
-    Bucket: process.env.BUCKET_NAME,
-    Key: `assets/something`,
-    Expires: 60 * 5
-  });
+const handler = async (event: APIGatewayProxyEventV2) => {
+  if (!event.queryStringParameters) {
+    return {
+      statusCode: 400,
+      body: "Bad request"
+    };
+  }
+
+  const { key } = event.queryStringParameters;
+  if (!key) {
+    return {
+      statusCode: 400,
+      body: "Bad request"
+    };
+  }
+
+  const signedUrl = await getSignedUrl(
+    S3,
+    new GetObjectCommand({ Bucket: process.env.BUCKET_NAME, Key: key }),
+    { expiresIn: 60 * 5 }
+  );
 
   const { path } = url.parse(signedUrl);
   if (!path) {
     throw new Error("integrity issue");
   }
 
-  const hash = crypto.createHash("sha256").update(path).digest("hex");
-
-  const modifiedUrl = `https://${process.env.CF_DOMAIN}${path}&hash=${hash}`;
-  const originalUrl = signedUrl;
-
   return {
     statusCode: 200,
-    body: JSON.stringify({ modifiedUrl, originalUrl })
+    body: JSON.stringify({ url: `https://${process.env.CF_DOMAIN}${path}` })
   };
 };
 
