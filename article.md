@@ -3,12 +3,12 @@ title: One-Time presigned URLs with Amazon CloudFront and S3
 published: false
 description:
 tags: aws, serverless, cdk, typescript
-cover_image: https://images.unsplash.com/photo-1523537444585-432d2bacc10d?ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&ixlib=rb-1.2.1&auto=format&fit=crop&w=2850&q=80
+cover_image: https://dev-to-uploads.s3.amazonaws.com/uploads/articles/c38257t6ew3zrntuk4t5.jpeg
 ---
 
 ## Context
 
-AWS S3 is an object storage service that, along with many other features, allows you to create presigned URLs that enable external users to access objects within a given S3 bucket.
+_Amazon S3_ is an object storage service that, along with many other features, allows you to create presigned URLs that enable external users to access objects within a given S3 bucket.
 
 While there is a possibility to set an expiration date of the URL, there is no native built-in capability of making it a one-time use resource.
 
@@ -22,7 +22,7 @@ The following is an example of how one could add such capability using building 
 
 I will be using _AWS CDK_ as my _IAC_ tool of choice and _TypeScript_ as a programing language for the implementation.
 
-First, the _AWS DynamoDB_ table for holding information about using a given presigned URL and the _AWS S3_ bucket will contain given objects.
+First, the _AWS DynamoDB_ table for holding information about using a given presigned URL and the _Amazon S3_ bucket will contain given objects.
 
 ```ts
 import * as dynamo from "@aws-cdk/aws-dynamodb";
@@ -70,7 +70,7 @@ api.addRoutes({
 
 It is crucial for the `urlLambda` ([implementation reference](https://github.com/WojciechMatuszewski/one-time-use-presigned-url/blob/master/lib/url-lambda.ts)) to return presigned URLs with the right domain.
 
-By default, presigned URLs contain the _AWS S3_ domain. In our case, the domain has to be swapped to the one exposed by _Amazon CloudFront_. This will allow us to run code (_Lambda@Edge_) whenever the URL is requested.
+By default, presigned URLs contain the _Amazon S3_ domain. In our case, the domain has to be swapped to the one exposed by _Amazon CloudFront_. This will allow us to run code (_Lambda@Edge_) whenever the URL is requested.
 
 For the last piece, the _Amazon CloudFront_ distribution with the _Lambda@Edge_ ([implementation reference](https://github.com/WojciechMatuszewski/one-time-use-presigned-url/blob/master/lib/edge-lambda.ts)) that will record the usages of the presigned URLs and decide if the request should be allowed or not.
 
@@ -169,15 +169,17 @@ cfnDistribution.addPropertyOverride(
 );
 ```
 
-If you are curious how the `node.defaultChild` works, [here is a great video you can watch](https://www.youtube.com/watch?v=X8G3G3SnCuI).
-
 With the OAI removed for the `assets-bucket` origin and the stack re-deployed, the previous GET request should work as intended.
+
+> If you are curious how the `node.defaultChild` works, [here is a great video you can watch](https://www.youtube.com/watch?v=X8G3G3SnCuI).
 
 ## Summary
 
-I've created this architecture as a way for me to brush up my knowledge of _Amazon CloudFormation_.
+I've created this architecture as a way for me to brush up my knowledge of _Amazon CloudFormation_. The underlying implementation is simplified to be easily digestible.
+
 Please do not treat it as the only possible way to achieve the underlying goal, there definitely might be cheaper ways to do so! (_Lambda@Edge_ is relatively costly compared to regular _AWS Lambda_).
 
-You can find me on Twitter - [@wm_matuszewski](https://twitter.com/wm_matuszewski)
+- I'm on twitter - [@wm_matuszewski](https://twitter.com/wm_matuszewski)
+- [Code used for this article](https://github.com/WojciechMatuszewski/one-time-use-presigned-url).
 
 Thanks 👋
