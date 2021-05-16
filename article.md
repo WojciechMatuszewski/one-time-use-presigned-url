@@ -22,7 +22,7 @@ The following is an example of how one could add such capability using building 
 
 I will be using _AWS CDK_ as my _IAC_ tool of choice and _TypeScript_ as a programing language for the implementation.
 
-First, the _AWS DynamoDB_ table for holding information about using a given presigned URL and the _Amazon S3_ bucket will contain given objects.
+First, the _AWS DynamoDB_ table for storing information about the usage of a given presigned URL and the _Amazon S3_ bucket for holding objects.
 
 ```ts
 import * as dynamo from "@aws-cdk/aws-dynamodb";
@@ -39,7 +39,7 @@ const bucket = new s3.Bucket(this, "assets-bucket", {
 });
 ```
 
-Next, the _AWS Lambda_ fronted with _Amazon API Gateway_. This part of the infrastructure is responsible for generating presigned URLs.
+Next, the _AWS Lambda_ fronted with _Amazon API Gateway_. This part of the infrastructure is responsible for generating the presigned URLs.
 
 ```ts
 import * as lambda from "@aws-cdk/aws-lambda-nodejs";
@@ -68,9 +68,9 @@ api.addRoutes({
 });
 ```
 
-It is crucial for the `urlLambda` ([implementation reference](https://github.com/WojciechMatuszewski/one-time-use-presigned-url/blob/master/lib/url-lambda.ts)) to return presigned URLs with the right domain.
+It is crucial for the `urlLambda` ([implementation reference](https://github.com/WojciechMatuszewski/one-time-use-presigned-url/blob/master/lib/url-lambda.ts)) to return presigned URL with the right domain.
 
-By default, presigned URLs contain the _Amazon S3_ domain. In our case, the domain has to be swapped to the one exposed by _Amazon CloudFront_. This will allow us to run code (_Lambda@Edge_) whenever the URL is requested.
+By default, if you are using the _Amazon S3_ SDK, the presigned URLs contain the _Amazon S3_ domain. In our case, the domain has to be swapped to the one exposed by _Amazon CloudFront_. This will allow us to run code (_Lambda@Edge_) whenever the URL is requested.
 
 For the last piece, the _Amazon CloudFront_ distribution with the _Lambda@Edge_ ([implementation reference](https://github.com/WojciechMatuszewski/one-time-use-presigned-url/blob/master/lib/edge-lambda.ts)) that will record the usages of the presigned URLs and decide if the request should be allowed or not.
 
@@ -135,8 +135,7 @@ With the object uploaded, we can request the presigned URL.
 curl -XGET 'https://<getPresignedUrlEndpoint>?key=cat.jpeg'
 ```
 
-Now we have everything in place to test our solution.
-In theory, the first GET request for URL returned from the previous command should succeed. All subsequent requests should fail with the 403 status code.
+Now we have everything in place to test our solution. In theory, the first GET request for URL returned from the previous command should succeed. All subsequent requests should fail with the 403 status code.
 
 Sadly, when we make the request, an error will be returned
 
@@ -151,11 +150,11 @@ Sadly, when we make the request, an error will be returned
 
 Due to the nature of how high-level some of the _AWS CDK constructs_ used in the _IaC_ portion of the code are, the error message might not be helpful at all. We are not setting the `Authorization` header anywhere in our code explicitly, so what is going on?
 
-It turns out that the `origins.S3Origin` _construct_ creates so-called [_Origin Access Identity_ (OAI)](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/private-content-restricting-access-to-s3.html). This identity is used to talk to a given _AmazonCloudFront_ origin, in our case the `assets-bucket`.
+It turns out that the `origins.S3Origin` _construct_ creates so-called [_Origin Access Identity_ (OAI)](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/private-content-restricting-access-to-s3.html). This identity is used whenever _Amazon CloudFront_ communicates with a given origin, in our case the `assets-bucket`.
 
-With OAI in place, _Amazon CloudFront_ will add an `Authorization` header for each request to a given origin. As for us, this behavior creates a conflict between authorization-related information contained within the query parameters of the presigned URL and said header.
+With OAI in place, _Amazon CloudFront_ will add an `Authorization` header for each request to a given origin. As for us, this behavior creates a conflict between authorization-related information contained within the query parameters of the presigned URL and the `Authorization` header.
 
-As the `S3Origin` _construct_, to my best knowledge, does not allow us to configure whether we want to create OAI or not, we can leverage one of the _AWS CDK_ escape hatches to modify the underlying _CloudFormation_ template directly - effectively removing the OAI from the _Amazon CloudFront_ distribution origin.
+As the `S3Origin` _construct_, to my best knowledge, does not allow us to configure whether we want to create OAI or not, we can leverage one of the _AWS CDK_ escape hatches to modify the underlying _CloudFormation_ template directly - effectively removing the created OAI.
 
 ```ts
 const distribution = new cloudfront.Distribution(this, "distribution", {}); // Defined previously.
@@ -180,6 +179,6 @@ I've created this architecture as a way for me to brush up my knowledge of _Amaz
 Please do not treat it as the only possible way to achieve the underlying goal, there definitely might be cheaper ways to do so! (_Lambda@Edge_ is relatively costly compared to regular _AWS Lambda_).
 
 - I'm on twitter - [@wm_matuszewski](https://twitter.com/wm_matuszewski)
-- [Code used for this article](https://github.com/WojciechMatuszewski/one-time-use-presigned-url).
+- [Code used for this article](https://github.com/WojciechMatuszewski/one-time-use-presigned-url)
 
 Thanks 👋
